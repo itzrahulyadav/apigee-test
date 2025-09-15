@@ -31,4 +31,4 @@ steps:
           -Denv=$_APIGEE_TEST_ENV -Dbearer=${build_token}
 
 options:
-  logging: LEGACY
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
