@@ -1,16 +1,20 @@
+substitutions:
+  _APIGEE_HOST: "34.54.45.250.nip.io"
+  _APIGEE_ENV: "eval"
+  _PROJECT: "oasis-0000"
 
 steps:
+  # Step 1: Generate build token
   - name: 'gcr.io/cloud-builders/gcloud'
-    id: variables
+    id: "Generate token"
     entrypoint: 'bash'
     args:
       - -c
       - |
-        export build_token=\"$(gcloud auth application-default \
-          print-access-token)\"
+        export build_token="$(gcloud auth application-default print-access-token)"
+        echo "build_token=$build_token" > /workspace/build_vars
 
-        # write all "build_" variables to the persistent volume "/workspace"
-        env | grep "^build_" > /workspace/build_vars
+  # Step 2: Package bundle with Maven
   - name: 'gcr.io/cloud-builders/mvn'
     id: "Package bundle"
     entrypoint: 'bash'
@@ -18,17 +22,18 @@ steps:
       - -c
       - |
         mvn -f pom.xml -ntp process-resources apigee-enterprise:configure \
-          -Pdev -Dorg=$PROJECT_ID -Denv=$_APIGEE_TEST_ENV
+          -Pdev -Dorg=${_PROJECT} -Denv=${_APIGEE_ENV}
+
+  # Step 3: Deploy bundle with Maven
   - name: 'gcr.io/cloud-builders/mvn'
     id: "Deploy bundle"
     entrypoint: 'bash'
     args:
       - -c
       - |
-        # Read environment variables from disk
-        source /workspace/build_vars &&
-        mvn -f pom.xml -ntp apigee-enterprise:deploy -Pdev -Dorg=$PROJECT_ID \
-          -Denv=$_APIGEE_TEST_ENV -Dbearer=${build_token}
+        source /workspace/build_vars
+        mvn -f pom.xml -ntp apigee-enterprise:deploy -Pdev -Dorg=${_PROJECT} \
+          -Denv=${_APIGEE_ENV} -Dbearer=${build_token}
 
 options:
   defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
