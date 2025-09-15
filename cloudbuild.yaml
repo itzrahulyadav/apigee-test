@@ -32,7 +32,8 @@ steps:
       - -c
       - |
         source /workspace/build_vars
-        mvn -f pom.xml -ntp apigee-enterprise:deploy -Pdev -Dorg=${_PROJECT} \
+        echo "Token: $build_token"
+        mvn -f pom.xml -ntp -X apigee-enterprise:deploy -Pdev -Dorg=${_PROJECT} \
           -Denv=${_APIGEE_ENV} -Dbearer=${build_token}
 
 options:
