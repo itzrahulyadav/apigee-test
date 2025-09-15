@@ -31,4 +31,4 @@ steps:
           -Denv=$_APIGEE_TEST_ENV -Dbearer=${build_token}
 
 options:
-  logging: CLOUD_LOGGING_ONLY
+  logging: LEGACY
