@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<APIProxy revision="1" name="simple-proxy">
+  <DisplayName/>
+  <Description>Simple reverse proxy to httpbin</Description>
+  <CreatedAt>1757954027392</CreatedAt>
+  <LastModifiedAt>1757954027392</LastModifiedAt>
+  <BasePaths>/simple</BasePaths>
+  <ProxyEndpoints>
+    <ProxyEndpoint>default</ProxyEndpoint>
+  </ProxyEndpoints>
+  <TargetEndpoints>
+    <TargetEndpoint>default</TargetEndpoint>
+  </TargetEndpoints>
+</APIProxy>
