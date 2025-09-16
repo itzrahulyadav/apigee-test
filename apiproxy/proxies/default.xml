@@ -12,7 +12,7 @@
   </PostFlow>
   <Flows/>
   <HTTPProxyConnection>
-    <BasePath>/simple</BasePath>
+    <BasePath>/test</BasePath>
     <Properties/>
   </HTTPProxyConnection>
   <RouteRule name="default">
