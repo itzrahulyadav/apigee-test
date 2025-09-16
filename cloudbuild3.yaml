@@ -1,7 +1,7 @@
 substitutions:
-  _ORG: “oasis-0000“
+  _ORG: "oasis-0000"
   _ENV: "test"      
-  _PROXY_NAME: “hello-world”
+  _PROXY_NAME: "newproxy"
 
 steps:
   - name: "ghcr.io/apigee/apigeecli:latest"
