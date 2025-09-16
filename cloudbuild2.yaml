@@ -1,35 +1,24 @@
-# limitations under the License.
+substitutions:
+  # Customize these values (set via trigger or manually override in Cloud Build UI)
+  _ORG: "oasis-0000"  # Apigee organization name (often your GCP project ID)
+  _ENV: "test"             # Target Apigee environment (e.g., test, prod)
+  _PROXY_NAME: "apiproxy"  # Name of the API proxy (must match <Name> in apiproxy/apiproxy.xml)
 
 steps:
-  - name: 'gcr.io/cloud-builders/gcloud'
-    id: variables
-    entrypoint: 'bash'
+  - name: "ghcr.io/apigee/apigeecli:latest"
+    id: "deploy-apigee-proxy"
+    entrypoint: "sh"
     args:
-      - -c
+      - "-c"
       - |
-        export build_token=\"$(gcloud auth application-default \
-          print-access-token)\"
-
-        # write all "build_" variables to the persistent volume "/workspace"
-        env | grep "^build_" > /workspace/build_vars
-  - name: 'gcr.io/cloud-builders/mvn'
-    id: "Package bundle"
-    entrypoint: 'bash'
-    args:
-      - -c
-      - |
-        mvn -f pom.xml -ntp process-resources apigee-enterprise:configure \
-          -Pdev -Dorg=$PROJECT_ID -Denv=$_APIGEE_TEST_ENV
-  - name: 'gcr.io/cloud-builders/mvn'
-    id: "Deploy bundle"
-    entrypoint: 'bash'
-    args:
-      - -c
-      - |
-        # Read environment variables from disk
-        source /workspace/build_vars &&
-        mvn -f pom.xml -ntp apigee-enterprise:deploy -Pdev -Dorg=$PROJECT_ID \
-          -Denv=$_APIGEE_TEST_ENV -Dbearer=${build_token}
-
-options:
-  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
+        # Cache access token from Cloud Build metadata (uses service account)
+        apigeecli token cache --metadata-token
+        
+        # Set organization (disables SSL checks if needed for self-signed certs)
+        apigeecli prefs set --nocheck=true -o $_ORG
+        
+        # Import bundle to create new revision (creates proxy if it doesn't exist)
+        apigeecli apis create bundle -f apiproxy --name $_PROXY_NAME
+        
+        # Deploy latest revision to environment (overrides existing deployment, waits for completion)
+        apigeecli apis deploy --wait --name $_PROXY_NAME --ovr -e $_ENV
