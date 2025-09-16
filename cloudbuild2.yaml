@@ -22,3 +22,7 @@ steps:
         
         # Deploy latest revision to environment (overrides existing deployment, waits for completion)
         apigeecli apis deploy --wait --name $_PROXY_NAME --ovr -e $_ENV
+
+      
+options:
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
