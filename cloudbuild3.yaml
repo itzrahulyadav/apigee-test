@@ -1,6 +1,6 @@
 substitutions:
   _ORG: "oasis-0000"
-  _ENV: "test"      
+  _ENV: "eval"      
   _PROXY_NAME: "newproxy"
 
 steps:
