@@ -29,3 +29,7 @@ steps:
           echo "Deploy attempt $i failed, retrying..."
           sleep 5
         done || { echo "Deployment failed after retries"; exit 1; }
+
+
+options:
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
