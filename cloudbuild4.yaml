@@ -2,7 +2,10 @@ substitutions:
   _APIGEE_HOST: "34.54.45.250.nip.io"
   _APIGEE_ENV: "eval"
   _PROJECT: "oasis-0000"
-
+approvals:
+  - required: true
+    id: "manual-approval"
+    description: "Approval required before deployment"
 steps:
   # Step 1: Generate build token
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -14,7 +17,6 @@ steps:
       - |
         export build_token="$(gcloud auth application-default print-access-token)"
         echo "build_token=$build_token" > /workspace/build_vars
-
   # Step 2: Package bundle with Maven
   - name: 'gcr.io/cloud-builders/mvn'
     id: "Package bundle"
@@ -25,14 +27,11 @@ steps:
       - |
         mvn -f pom.xml -ntp process-resources apigee-enterprise:configure \
           -Pdev -Dorg=${_PROJECT} -Denv=${_APIGEE_ENV}
-
-  # Step 3: Manual Approval
-  - id: "Approval before deployment"
-    name: "gcr.io/cloud-builders/gsutil"
+  # Step 3: Manual Approval Placeholder (just logs, no approval field)
+  - name: 'gcr.io/cloud-builders/gsutil'
+    id: "Approval before deployment"
     waitFor: ["Package bundle"]
-    args: ["echo", "Waiting for approval..."]
-    approval: true
-
+    args: ["echo", "Waiting for manual approval..."]
   # Step 4: Deploy bundle with Maven
   - name: 'gcr.io/cloud-builders/mvn'
     id: "Deploy bundle"
@@ -45,7 +44,6 @@ steps:
         echo "Token: $build_token"
         mvn -f pom.xml -ntp -X apigee-enterprise:deploy -Pdev -Dorg=${_PROJECT} \
           -Denv=${_APIGEE_ENV} -Dbearer=${build_token} -Doverride=true
-
   # Step 5: Smoke Test
   - name: 'curlimages/curl'
     id: "Smoke test"
@@ -66,7 +64,6 @@ steps:
           exit 1
         fi
         echo "Smoke test passed"
-
   # Step 6: Rollback if smoke test fails
   - name: 'gcr.io/cloud-builders/mvn'
     id: "Rollback"
@@ -83,6 +80,5 @@ steps:
         else
           echo "No rollback required"
         fi
-
 options:
   defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
