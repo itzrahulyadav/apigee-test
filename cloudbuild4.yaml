@@ -1,0 +1,111 @@
+substitutions:
+  _APIGEE_HOST: "34.54.45.250.nip.io"
+  _APIGEE_ENV: "eval"
+  _PROJECT: "oasis-0000"
+  _PROXY_NAME: "new-proxy"
+  _BASE_PATH: "/test" 
+
+steps:
+  # Step 1: Generate build token
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: "Generate token"
+    entrypoint: 'bash'
+    args:
+      - -c
+      - |
+        export build_token="$(gcloud auth application-default print-access-token)"
+        echo "build_token=$build_token" > /workspace/build_vars
+    waitFor: ["-"]
+
+  # Step 2: Validate proxy bundle (mvn validate + apigee plugin lint/validate)
+  - name: 'gcr.io/cloud-builders/mvn'
+    id: "Validate bundle"
+    entrypoint: 'bash'
+    args:
+      - -c
+      - |
+        mvn -f pom.xml -ntp clean verify \
+          -Pdev -Dorg=${_PROJECT} -Denv=${_APIGEE_ENV}
+    waitFor: ["Generate token"]
+
+  # Step 3: Package bundle
+  - name: 'gcr.io/cloud-builders/mvn'
+    id: "Package bundle"
+    entrypoint: 'bash'
+    args:
+      - -c
+      - |
+        mvn -f pom.xml -ntp process-resources apigee-enterprise:configure \
+          -Pdev -Dorg=${_PROJECT} -Denv=${_APIGEE_ENV}
+    waitFor: ["Validate bundle"]
+
+  # Step 4: Capture current deployed revision (for rollback later)
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: "Get current revision"
+    entrypoint: 'bash'
+    args:
+      - -c
+      - |
+        source /workspace/build_vars
+        current_rev=$(curl -s -H "Authorization: Bearer $build_token" \
+          "https://apigee.googleapis.com/v1/organizations/${_PROJECT}/environments/${_APIGEE_ENV}/apis/${_PROXY_NAME}/deployments" \
+          | jq -r '.deployments[0].revision')
+        echo "current_revision=$current_rev" > /workspace/revision_vars
+        echo "Current deployed revision: $current_rev"
+    waitFor: ["Package bundle"]
+
+  # Step 5: Deploy new revision
+  - name: 'gcr.io/cloud-builders/mvn'
+    id: "Deploy bundle"
+    entrypoint: 'bash'
+    args:
+      - -c
+      - |
+        source /workspace/build_vars
+        mvn -f pom.xml -ntp apigee-enterprise:deploy \
+          -Pdev -Dorg=${_PROJECT} -Denv=${_APIGEE_ENV} \
+          -Dbearer=${build_token} -Doverride=true
+    waitFor: ["Get current revision"]
+
+  # Step 6: Smoke test
+  - name: 'curlimages/curl'
+    id: "Smoke test"
+    entrypoint: 'bash'
+    args:
+      - -c
+      - |
+        set -e
+        # give Apigee a few seconds to update deployment
+        sleep 10
+        url="https://${_APIGEE_HOST}${_BASE_PATH}/"
+        echo "Running smoke test on $url"
+        http_code=$(curl -s -o /dev/null -w "%{http_code}" "$url")
+        echo "Got HTTP $http_code"
+        if [ "$http_code" -ne 200 ]; then
+          echo "Smoke test failed"
+          exit 1
+        fi
+    waitFor: ["Deploy bundle"]
+
+  # Step 7: Rollback (only runs if Smoke test fails)
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: "Rollback"
+    entrypoint: 'bash'
+    args:
+      - -c
+      - |
+        source /workspace/build_vars
+        source /workspace/revision_vars || true
+        if [ -n "$current_revision" ]; then
+          echo "Rolling back to revision $current_revision..."
+          curl -s -X POST -H "Authorization: Bearer $build_token" \
+            "https://apigee.googleapis.com/v1/organizations/${_PROJECT}/environments/${_APIGEE_ENV}/apis/${_PROXY_NAME}/revisions/${current_revision}/deployments"
+        else
+          echo "No previous revision found, skipping rollback."
+        fi
+    waitFor: ["Smoke test"]
+    # run only on failure
+    allowFailure: true
+
+options:
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
