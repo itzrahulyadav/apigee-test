@@ -40,6 +40,28 @@ steps:
     waitFor: ["Validate bundle"]
 
   # Step 4: Capture current deployed revision (for rollback later)
+  - id: "Manual Approval"
+    name: 'gcr.io/cloud-builders/gcloud'
+    waitFor: ["Package bundle"]
+    approval: true
+    args:
+      - -c
+      - |
+        echo "Waiting for manual approval before deploying to Apigee..."
+  - id: "Check Approval"
+    name: 'gcr.io/cloud-builders/gcloud'
+    waitFor: ["Manual Approval"]
+    entrypoint: 'bash'
+    args:
+      - -c
+      - |
+        if [[ "$BUILD_STATUS" == "CANCELLED" ]]; then
+          echo "❌ Build rejected by approver."
+          exit 1
+        else
+          echo "✅ Approval granted, proceeding to deploy..."
+        fi
+        
   - name: 'gcr.io/cloud-builders/gcloud'
     id: "Get current revision"
     entrypoint: 'bash'
