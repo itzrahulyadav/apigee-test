@@ -34,7 +34,7 @@ steps:
         source /workspace/build_vars
         echo "Token: $build_token"
         mvn -f pom.xml -ntp -X apigee-enterprise:deploy -Pdev -Dorg=${_PROJECT} \
-          -Denv=${_APIGEE_ENV} -Dbearer=${build_token}
+          -Denv=${_APIGEE_ENV} -Dbearer=${build_token}  -Doverride=true
 
 options:
   defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
