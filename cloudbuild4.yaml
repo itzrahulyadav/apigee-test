@@ -106,7 +106,7 @@ substitutions:
   _APIGEE_HOST: "34.54.45.250.nip.io"
   _APIGEE_ENV: "eval"
   _PROJECT: "oasis-0000"
-  _API_NAME: ""
+  _API_NAME: "simple-proxy"
 
 steps:
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -140,17 +140,8 @@ steps:
       - |
         source /workspace/build_vars
         echo "Token: $build_token"
-        
-      API_NAME=$(mvn -q \
-          -Dexec.executable=echo \
-          -Dexec.args='${project.artifactId}' \
-          --non-recursive exec:exec)
-
-        echo "API Proxy name: $API_NAME"
-        echo "API_NAME=$API_NAME" >> /workspace/build_vars
-
         CURRENT_REVS=$(curl -s -H "Authorization: Bearer $build_token" \
-          "https://apigee.googleapis.com/v1/organizations/${_PROJECT}/apis/${API_NAME}/revisions")
+          "https://apigee.googleapis.com/v1/organizations/${_PROJECT}/apis/${_API_NAME}/revisions")
 
         if [ -n "$CURRENT_REVS" ] && [ "$CURRENT_REVS" != "[]" ]; then
           LATEST_REV=$(echo $CURRENT_REVS | jq -r 'map(tonumber) | max')
