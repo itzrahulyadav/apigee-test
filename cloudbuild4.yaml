@@ -4,7 +4,6 @@ substitutions:
   _PROJECT: "oasis-0000"
 
 steps:
-  # Step 1: Generate build token
   - name: 'gcr.io/cloud-builders/gcloud'
     id: "Generate token"
     waitFor: ["-"] # start first
@@ -14,6 +13,7 @@ steps:
       - |
         export build_token="$(gcloud auth application-default print-access-token)"
         echo "build_token=$build_token" > /workspace/build_vars
+
   # Step 2: Package bundle with Maven
   - name: 'gcr.io/cloud-builders/mvn'
     id: "Package bundle"
@@ -25,7 +25,7 @@ steps:
         mvn -f pom.xml -ntp process-resources apigee-enterprise:configure \
           -Pdev -Dorg=${_PROJECT} -Denv=${_APIGEE_ENV}
       
-  # Step 4: Deploy bundle with Maven
+  # Step 3: Deploy bundle with Maven
   - name: 'gcr.io/cloud-builders/mvn'
     id: "Deploy bundle"
     waitFor: ["Approval before deployment"]
@@ -37,27 +37,28 @@ steps:
         echo "Token: $build_token"
         mvn -f pom.xml -ntp -X apigee-enterprise:deploy -Pdev -Dorg=${_PROJECT} \
           -Denv=${_APIGEE_ENV} -Dbearer=${build_token} -Doverride=true
-  # Step 5: Smoke Test
+
+  # Step 4: Smoke Test (doesn't stop pipeline if fails)
   - name: 'curlimages/curl'
     id: "Smoke test"
     waitFor: ["Deploy bundle"]
+    allowFailure: true   # ✅ allow rollback to run if this fails
     entrypoint: 'sh'
     args:
       - -c
       - |
         source /workspace/build_vars
         echo "Running smoke test..."
-        set -e
-        curl -s -o /dev/null -w "%{http_code}" "https://${_APIGEE_HOST}/test" \
-          -H "Authorization: Bearer $build_token" \
-          | tee /workspace/http_code
-        code=$(cat /workspace/http_code)
-        if [ "$code" != "200" ]; then
-          echo "Smoke test failed with HTTP $code"
+        http_code=$(curl -s -o /dev/null -w "%{http_code}" "https://${_APIGEE_HOST}/test" \
+          -H "Authorization: Bearer $build_token")
+        echo "HTTP code: $http_code" > /workspace/http_code
+        if [ "$http_code" != "200" ]; then
+          echo "Smoke test failed with HTTP $http_code"
           exit 1
         fi
         echo "Smoke test passed"
-  # Step 6: Rollback if smoke test fails
+
+  # Step 5: Rollback if smoke test fails
   - name: 'gcr.io/cloud-builders/mvn'
     id: "Rollback"
     waitFor: ["Smoke test"]
@@ -65,13 +66,16 @@ steps:
     args:
       - -c
       - |
-        if [ "$BUILD_STATUS" == "FAILURE" ]; then
+        code=$(cat /workspace/http_code || echo "000")
+        if [ "$code" != "200" ]; then
           echo "Rolling back to previous revision..."
           source /workspace/build_vars
           mvn -f pom.xml -ntp apigee-enterprise:deploy -Pdev -Dorg=${_PROJECT} \
             -Denv=${_APIGEE_ENV} -Dbearer=${build_token} -Doverride=false -Drollback=true
+          exit 1   # ✅ fail build after rollback
         else
           echo "No rollback required"
         fi
+
 options:
   defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
