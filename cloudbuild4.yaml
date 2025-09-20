@@ -1,3 +1,107 @@
+# substitutions:
+#   _APIGEE_HOST: "34.54.45.250.nip.io"
+#   _APIGEE_ENV: "eval"
+#   _PROJECT: "oasis-0000"
+
+# steps:
+#   - name: 'gcr.io/cloud-builders/gcloud'
+#     id: "Generate token"
+#     waitFor: ["-"] # start first
+#     entrypoint: 'bash'
+#     args:
+#       - -c
+#       - |
+#         export build_token="$(gcloud auth application-default print-access-token)"
+#         echo "build_token=$build_token" > /workspace/build_vars
+
+#   # Step 2: Package bundle with Maven
+#   - name: 'gcr.io/cloud-builders/mvn'
+#     id: "Package bundle"
+#     waitFor: ["Generate token"]
+#     entrypoint: 'bash'
+#     args:
+#       - -c
+#       - |
+#         mvn -f pom.xml -ntp process-resources apigee-enterprise:configure \
+#           -Pdev -Dorg=${_PROJECT} -Denv=${_APIGEE_ENV}
+      
+#   # Step 3: Deploy bundle with Maven
+#   - name: 'gcr.io/cloud-builders/mvn'
+#     id: "Deploy bundle"
+#     waitFor: ["Package bundle"]
+#     entrypoint: 'bash'
+#     args:
+#       - -c
+#       - |
+#         source /workspace/build_vars
+#         echo "Token: $build_token"
+        
+#         API_NAME=$(mvn -q \
+#           -Dexec.executable=echo \
+#           -Dexec.args='${project.artifactId}' \
+#           --non-recursive exec:exec)
+
+#         echo "API Proxy name: $API_NAME"
+
+#         CURRENT_REVS=$(curl -s -H "Authorization: Bearer $build_token" \
+#           "https://apigee.googleapis.com/v1/organizations/${_PROJECT}/apis/$API_NAME/revisions")
+
+#         if [ -n "$CURRENT_REVS" ] && [ "$CURRENT_REVS" != "[]" ]; then
+#           LATEST_REV=$(echo $CURRENT_REVS | jq -r 'map(tonumber) | max')
+#           NEXT_REV=$((LATEST_REV+1))
+#           echo "Latest deployed revision: $LATEST_REV"
+#           echo "Next revision to be deployed: $NEXT_REV"
+#         else
+#           echo "No existing revisions found. This will be revision 1."
+#         fi
+        
+#         mvn -f pom.xml -ntp -X apigee-enterprise:deploy -Pdev -Dorg=${_PROJECT} \
+#           -Denv=${_APIGEE_ENV} -Dbearer=${build_token} -Doverride=true
+
+#   # Step 4: Smoke Test (doesn't stop pipeline if fails)
+#   - name: 'curlimages/curl'
+#     id: "Smoke test"
+#     waitFor: ["Deploy bundle"]
+#     allowFailure: true   # ✅ allow rollback to run if this fails
+#     entrypoint: 'sh'
+#     args:
+#       - -c
+#       - |
+#         source /workspace/build_vars
+#         echo "Running smoke test..."
+#         http_code=$(curl -s -o /dev/null -w "%{http_code}" "https://${_APIGEE_HOST}/test" \
+#           -H "Authorization: Bearer $build_token")
+#         echo "HTTP code: $http_code" > /tmp/http_code
+#         if [ "$http_code" != "200" ]; then
+#           echo "Smoke test failed with HTTP $http_code"
+#           exit 1
+#         fi
+#         echo "Smoke test passed"
+
+#   # Step 5: Rollback if smoke test fails
+#   - name: 'gcr.io/cloud-builders/mvn'
+#     id: "Rollback"
+#     waitFor: ["Smoke test"]
+#     entrypoint: 'bash'
+#     args:
+#       - -c
+#       - |
+#         code=$(cat /tmp/http_code || echo "000")
+#         if [ "$code" != "200" ]; then
+#           echo "Rolling back to previous revision..."
+#           source /workspace/build_vars
+#           mvn -f pom.xml -ntp apigee-enterprise:deploy -Pdev -Dorg=${_PROJECT} \
+#             -Denv=${_APIGEE_ENV} -Dbearer=${build_token} -Doverride=false -Drollback=true
+#           exit 1   # ✅ fail build after rollback
+#         else
+#           echo "No rollback required"
+#         fi
+
+# options:
+#   defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
+
+
+
 substitutions:
   _APIGEE_HOST: "34.54.45.250.nip.io"
   _APIGEE_ENV: "eval"
@@ -42,9 +146,10 @@ steps:
           --non-recursive exec:exec)
 
         echo "API Proxy name: $API_NAME"
+        echo "API_NAME=$API_NAME" >> /workspace/build_vars
 
         CURRENT_REVS=$(curl -s -H "Authorization: Bearer $build_token" \
-          "https://apigee.googleapis.com/v1/organizations/${_PROJECT}/apis/$API_NAME/revisions")
+          "https://apigee.googleapis.com/v1/organizations/${_PROJECT}/apis/${API_NAME}/revisions")
 
         if [ -n "$CURRENT_REVS" ] && [ "$CURRENT_REVS" != "[]" ]; then
           LATEST_REV=$(echo $CURRENT_REVS | jq -r 'map(tonumber) | max')
@@ -91,7 +196,8 @@ steps:
           echo "Rolling back to previous revision..."
           source /workspace/build_vars
           mvn -f pom.xml -ntp apigee-enterprise:deploy -Pdev -Dorg=${_PROJECT} \
-            -Denv=${_APIGEE_ENV} -Dbearer=${build_token} -Doverride=false -Drollback=true
+            -Denv=${_APIGEE_ENV} -Dbearer=${build_token} -Doverride=false -Drollback=true \
+            -Dapigee.api=${API_NAME}
           exit 1   # ✅ fail build after rollback
         else
           echo "No rollback required"
