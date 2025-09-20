@@ -2,10 +2,7 @@ substitutions:
   _APIGEE_HOST: "34.54.45.250.nip.io"
   _APIGEE_ENV: "eval"
   _PROJECT: "oasis-0000"
-approvals:
-  - required: true
-    id: "manual-approval"
-    description: "Approval required before deployment"
+
 steps:
   # Step 1: Generate build token
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -27,11 +24,7 @@ steps:
       - |
         mvn -f pom.xml -ntp process-resources apigee-enterprise:configure \
           -Pdev -Dorg=${_PROJECT} -Denv=${_APIGEE_ENV}
-  # Step 3: Manual Approval Placeholder (just logs, no approval field)
-  - name: 'gcr.io/cloud-builders/gsutil'
-    id: "Approval before deployment"
-    waitFor: ["Package bundle"]
-    args: ["echo", "Waiting for manual approval..."]
+      
   # Step 4: Deploy bundle with Maven
   - name: 'gcr.io/cloud-builders/mvn'
     id: "Deploy bundle"
@@ -55,7 +48,7 @@ steps:
         source /workspace/build_vars
         echo "Running smoke test..."
         set -e
-        curl -s -o /dev/null -w "%{http_code}" "https://${_APIGEE_HOST}/v1/my-proxy-endpoint" \
+        curl -s -o /dev/null -w "%{http_code}" "https://${_APIGEE_HOST}/test" \
           -H "Authorization: Bearer $build_token" \
           | tee /workspace/http_code
         code=$(cat /workspace/http_code)
