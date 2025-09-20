@@ -106,6 +106,7 @@ substitutions:
   _APIGEE_HOST: "34.54.45.250.nip.io"
   _APIGEE_ENV: "eval"
   _PROJECT: "oasis-0000"
+  _API_NAME: ""
 
 steps:
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -140,7 +141,7 @@ steps:
         source /workspace/build_vars
         echo "Token: $build_token"
         
-        API_NAME=$(mvn -q \
+      API_NAME=$(mvn -q \
           -Dexec.executable=echo \
           -Dexec.args='${project.artifactId}' \
           --non-recursive exec:exec)
