@@ -146,8 +146,8 @@ steps:
         if [ -n "$${CURRENT_REVS}" ] && [ "$${CURRENT_REVS}" != "[]" ]; then
           LATEST_REV=$(echo "$${CURRENT_REVS}" | jq -r 'map(tonumber) | max')
           NEXT_REV=$((LATEST_REV+1))
-          echo "Latest deployed revision: $LATEST_REV"
-          echo "Next revision to be deployed: $NEXT_REV"
+          echo "Latest deployed revision: $$LATEST_REV"
+          echo "Next revision to be deployed: $$NEXT_REV"
         else
           echo "No existing revisions found. This will be revision 1."
         fi
