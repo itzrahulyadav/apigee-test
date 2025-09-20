@@ -61,7 +61,7 @@ steps:
           -Denv=${_APIGEE_ENV} -Dbearer=${build_token} -Doverride=true
 
 
-  - name: 'curlimages/curl'
+  - name: 'gcr.io/cloud-builders/curl'
     id: "Smoke test"
     waitFor: ["Deploy bundle"]
     allowFailure: true   # ✅ allow rollback to run if this fails
