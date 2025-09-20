@@ -28,7 +28,7 @@ steps:
   # Step 3: Deploy bundle with Maven
   - name: 'gcr.io/cloud-builders/mvn'
     id: "Deploy bundle"
-    waitFor: ["Approval before deployment"]
+    waitFor: ["Package bundle"]
     entrypoint: 'bash'
     args:
       - -c
