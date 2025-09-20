@@ -60,7 +60,7 @@ steps:
         mvn -f pom.xml -ntp -X apigee-enterprise:deploy -Pdev -Dorg=${_PROJECT} \
           -Denv=${_APIGEE_ENV} -Dbearer=${build_token} -Doverride=true
 
-  # Step 4: Smoke Test (doesn't stop pipeline if fails)
+
   - name: 'curlimages/curl'
     id: "Smoke test"
     waitFor: ["Deploy bundle"]
@@ -73,8 +73,7 @@ steps:
         echo "Running smoke test..."
         http_code=$(curl -s -o /dev/null -w "%{http_code}" "https://${_APIGEE_HOST}/test" \
           -H "Authorization: Bearer $build_token")
-        # echo "HTTP code: $http_code" > /tmp/http_code
-        echo "HTTP code: $http_code" | tee /workspace/http_code
+         echo "http_code=$$http_code" >> /workspace/build_vars
         if [ "$http_code" != "200" ]; then
           echo "Smoke test failed with HTTP $http_code"
           exit 1
@@ -89,13 +88,8 @@ steps:
     args:
       - -c
       - |
-        code=$(cat /workspace/http_code || echo "000")
-        
-        ls -ltr
-        
-        cat /workspace/http_code
-        
-        if [ "$code" != "200" ]; then
+        source /workspace/build_vars
+        if [ "$$http_code" != "200" ]; then
           echo "Rolling back to previous revision..."
           source /workspace/build_vars
           mvn -f pom.xml -ntp apigee-enterprise:deploy -Pdev -Dorg=${_PROJECT} \
