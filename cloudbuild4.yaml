@@ -145,7 +145,7 @@ steps:
         
         echo "Latest revisions are: $$CURRENT_REVS"
         if [ -n "$${CURRENT_REVS}" ] && [ "$${CURRENT_REVS}" != "[]" ]; then
-          REVISIONS=$(echo "$CURRENT_REVS" | tr -d '[],"' | tr ' ' '\n' | tr -d '\r' | grep -E '^[0-9]+$')
+          REVISIONS=$(echo "$$CURRENT_REVS" | tr -d '[],"' | tr ' ' '\n' | tr -d '\r' | grep -E '^[0-9]+$')
           LATEST_REV=$(echo "$$REVISIONS" | sort -n | tail -1)
           NEXT_REV=$$((LATEST_REV+1))
           echo "Latest deployed revision: $$LATEST_REV"
