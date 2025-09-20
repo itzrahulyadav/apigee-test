@@ -71,7 +71,7 @@ steps:
       - |
         source /workspace/build_vars
         echo "Running smoke test..."
-        http_code=$(curl -s -o /dev/null -w "%{http_code}" "https://${_APIGEE_HOST}/test" \
+        http_code=$(curl -s -o /dev/null -w "%{http_code}" "https://${_APIGEE_HOST}/test2" \
           -H "Authorization: Bearer $build_token")
          echo "http_code=$$http_code" >> /workspace/build_vars
         if [ "$http_code" != "200" ]; then
