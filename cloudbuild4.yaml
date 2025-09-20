@@ -73,7 +73,8 @@ steps:
         echo "Running smoke test..."
         http_code=$(curl -s -o /dev/null -w "%{http_code}" "https://${_APIGEE_HOST}/test" \
           -H "Authorization: Bearer $build_token")
-        echo "HTTP code: $http_code" > /tmp/http_code
+        # echo "HTTP code: $http_code" > /tmp/http_code
+        echo "HTTP code: $http_code" | tee /workspace/http_code
         if [ "$http_code" != "200" ]; then
           echo "Smoke test failed with HTTP $http_code"
           exit 1
@@ -88,7 +89,12 @@ steps:
     args:
       - -c
       - |
-        code=$(cat /tmp/http_code || echo "000")
+        code=$(cat /workspace/http_code || echo "000")
+        
+        ls -ltr
+        
+        cat /workspace/http_code
+        
         if [ "$code" != "200" ]; then
           echo "Rolling back to previous revision..."
           source /workspace/build_vars
