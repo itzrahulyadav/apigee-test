@@ -143,8 +143,8 @@ steps:
         CURRENT_REVS=$(curl -s -H "Authorization: Bearer $build_token" \
           "https://apigee.googleapis.com/v1/organizations/${_PROJECT}/apis/${_API_NAME}/revisions")
 
-        if [ -n "${CURRENT_REVS}" ] && [ "${CURRENT_REVS}" != "[]" ]; then
-          LATEST_REV=$(echo "${CURRENT_REVS}" | jq -r 'map(tonumber) | max')
+        if [ -n "$${CURRENT_REVS}" ] && [ "$${CURRENT_REVS}" != "[]" ]; then
+          LATEST_REV=$(echo "$${CURRENT_REVS}" | jq -r 'map(tonumber) | max')
           NEXT_REV=$((LATEST_REV+1))
           echo "Latest deployed revision: $LATEST_REV"
           echo "Next revision to be deployed: $NEXT_REV"
