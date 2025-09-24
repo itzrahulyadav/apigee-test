@@ -8,9 +8,6 @@
       <Step>
         <Name>JS-Example</Name>
       </Step>
-      <Step>
-        <Name>PY-Example</Name>
-      </Step>
     </Request>
     <Response/>
   </PreFlow>
