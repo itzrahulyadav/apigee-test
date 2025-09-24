@@ -1,71 +1,52 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
- Copyright 2023 Google LLC
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-      http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
--->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
     <modelVersion>4.0.0</modelVersion>
     <groupId>apigee</groupId>
     <artifactId>simple-proxy</artifactId>
     <version>v1</version>
     <name>simple-proxy</name>
     <packaging>pom</packaging>
+
     <pluginRepositories>
         <pluginRepository>
             <id>central</id>
             <name>Maven Plugin Repository</name>
             <url>https://repo1.maven.org/maven2</url>
-            <layout>default</layout>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-            <releases>
-                <updatePolicy>never</updatePolicy>
-            </releases>
         </pluginRepository>
     </pluginRepositories>
+
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <org.slf4j.simpleLogger.defaultLogLevel>info</org.slf4j.simpleLogger.defaultLogLevel>
         <project.root.dir>${basedir}</project.root.dir>
         <target.root.dir>${basedir}/target</target.root.dir>
-        <apigee.deploy.version>2.3.5</apigee.deploy.version>
+
+        <!-- use latest stable -->
+        <apigee.maven.plugin.version>2.7.0</apigee.maven.plugin.version>
     </properties>
+
     <profiles>
         <profile>
             <id>dev</id>
             <properties>
                 <apigee.profile>dev</apigee.profile>
                 <apigee.env>${env}</apigee.env>
+                <apigee.org>${org}</apigee.org>
                 <apigee.hosturl>https://apigee.googleapis.com</apigee.hosturl>
                 <apigee.apiversion>v1</apigee.apiversion>
-                <apigee.org>${org}</apigee.org>
-                <apigee.options>override</apigee.options>
+
+                <!-- auth via bearer token from Cloud Build -->
                 <apigee.bearer>${bearer}</apigee.bearer>
+                <apigee.options>override</apigee.options>
             </properties>
         </profile>
     </profiles>
+
     <build>
-        <pluginManagement>
-            <plugins>
-                <plugin>
-                    <groupId>io.apigee.build-tools.enterprise4g</groupId>
-                    <artifactId>apigee-edge-maven-plugin</artifactId>
-                    <version>${apigee.deploy.version}</version>
-                </plugin>
-            </plugins>
-        </pluginManagement>
         <plugins>
             <!-- Copy apiproxy folder contents to target/apiproxy -->
             <plugin>
@@ -91,18 +72,22 @@
                     </execution>
                 </executions>
             </plugin>
+
+            <!-- New Apigee Maven Plugin -->
             <plugin>
-                <groupId>io.apigee.build-tools.enterprise4g</groupId>
-                <artifactId>apigee-edge-maven-plugin</artifactId>
-                <version>${apigee.deploy.version}</version>
+                <groupId>com.apigee.edge.config</groupId>
+                <artifactId>apigee-maven-plugin</artifactId>
+                <version>${apigee.maven.plugin.version}</version>
                 <executions>
+                    <!-- Validate bundle before deployment -->
                     <execution>
-                        <id>configure-bundle-step</id>
-                        <phase>package</phase>
+                        <id>validate-bundle-step</id>
+                        <phase>verify</phase>
                         <goals>
-                            <goal>configure</goal>
+                            <goal>validate</goal>
                         </goals>
                     </execution>
+
                     <!-- Deploy bundle -->
                     <execution>
                         <id>deploy-bundle-step</id>
