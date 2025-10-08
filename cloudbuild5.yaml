@@ -1,6 +1,6 @@
 substitutions:
   _APIGEE_HOST: "34.54.45.250.nip.io"
-  _APIGEE_ENV: "eval"
+  _APIGEE_ENV: "prod"
   _PROJECT: "oasis-0000"
   _API_NAME: "simple-proxy"
   _BUCKET_NAME: "apigee-proxy-bundles"  # Change this to your GCS bucket name
