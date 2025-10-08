@@ -41,12 +41,11 @@ steps:
           echo "Skipping packaging (non-dev branch)..."
         fi
 
-  # Step 2.1: Zip and upload to GCS (only for dev)
-- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-  id: "Zip and upload"
-  waitFor: ["Package bundle"]
-  entrypoint: 'bash'
-  args:
+ - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+   id: "Zip and upload"
+   waitFor: ["Package bundle"]
+   entrypoint: 'bash'
+   args:
     - -c
     - |
       echo "Current branch: ${BRANCH_NAME}"
