@@ -69,7 +69,8 @@ steps:
         echo "Current branch: ${BRANCH_NAME}"
         if [[ "${BRANCH_NAME}" != "main" ]]; then
           echo "Downloading existing UAT bundle from GCS..."
-          gsutil cp gs://${_BUCKET_NAME}/${_BUNDLE_PATH} /workspace/${_API_NAME}.zip
+         # gsutil cp gs://${_BUCKET_NAME}/${_BUNDLE_PATH} /workspace/${_API_NAME}.zip
+          gsutil cp gs://apigee-proxy-bundles/bundles/simple-proxy.zip /workspace/${_API_NAME}.zip
         else
           echo "Skipping download for main branch..."
         fi
