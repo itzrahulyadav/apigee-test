@@ -58,10 +58,26 @@ steps:
           echo "Skipping zip & upload (non-dev branch)..."
         fi
 
-  # Step 3: Deploy bundle
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: "Download bundle"
+    waitFor: ["Package bundle"]
+    entrypoint: 'bash'
+    args:
+      - -c
+      - |
+        echo "Current branch: ${BRANCH_NAME}"
+        if [[ "${BRANCH_NAME}" != "main" ]]; then
+          echo "Downloading existing UAT bundle from GCS..."
+          gsutil cp gs://${_BUCKET_NAME}/${_BUNDLE_PATH} /workspace/${_API_NAME}.zip
+        else
+          echo "Skipping download for main branch..."
+        fi
+
+  # Step 3b: Deploy bundle (UAT or PROD)
   - name: 'gcr.io/cloud-builders/mvn'
     id: "Deploy bundle"
-    waitFor: ["Package bundle"]
+    waitFor: ["Download bundle"]
     entrypoint: 'bash'
     args:
       - -c
@@ -74,14 +90,35 @@ steps:
           mvn -f pom.xml -ntp apigee-enterprise:deploy -Pdev \
             -Dorg=${_PROJECT} -Denv=${_APIGEE_ENV} -Dbearer=${build_token} -Doverride=true
         else
-          echo "Downloading existing UAT bundle from GCS..."
-          gsutil cp gs://${_BUCKET_NAME}/${_BUNDLE_PATH} /workspace/${_API_NAME}.zip
-
-          echo "Deploying existing bundle to PROD (same revision)...."
-          mvn -f pom.xml -ntp apigee-enterprise:deploy -Pprod \
+          echo "Deploying existing bundle to PROD (same revision)..."
+          mvn -f pom.xml -ntp apigee-enterprise:deploy -Pdev \
             -Dorg=${_PROJECT} -Denv=${_APIGEE_ENV} -Dbearer=${build_token} \
             -Dapigee.api=${_API_NAME} -Dzip.path=/workspace/${_API_NAME}.zip -Doverride=false
         fi
+
+  # - name: 'gcr.io/cloud-builders/mvn'
+  #   id: "Deploy bundle"
+  #   waitFor: ["Package bundle"]
+  #   entrypoint: 'bash'
+  #   args:
+  #     - -c
+  #     - |
+  #       source /workspace/build_vars
+  #       echo "Deploying proxy for branch: ${BRANCH_NAME}"
+
+  #       if [[ "${BRANCH_NAME}" == "main" ]]; then
+  #         echo "Deploying freshly packaged bundle to UAT..."
+  #         mvn -f pom.xml -ntp apigee-enterprise:deploy -Pdev \
+  #           -Dorg=${_PROJECT} -Denv=${_APIGEE_ENV} -Dbearer=${build_token} -Doverride=true
+  #       else
+  #         echo "Downloading existing UAT bundle from GCS..."
+  #         gsutil cp gs://${_BUCKET_NAME}/${_BUNDLE_PATH} /workspace/${_API_NAME}.zip
+
+  #         echo "Deploying existing bundle to PROD (same revision)...."
+  #         mvn -f pom.xml -ntp apigee-enterprise:deploy -Pprod \
+  #           -Dorg=${_PROJECT} -Denv=${_APIGEE_ENV} -Dbearer=${build_token} \
+  #           -Dapigee.api=${_API_NAME} -Dzip.path=/workspace/${_API_NAME}.zip -Doverride=false
+  #       fi
 
 options:
   defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
