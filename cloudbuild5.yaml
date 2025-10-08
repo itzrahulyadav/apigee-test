@@ -41,27 +41,27 @@ steps:
           echo "Skipping packaging (non-dev branch)..."
         fi
 
- - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-   id: "Zip and upload"
-   waitFor: ["Package bundle"]
-   entrypoint: 'bash'
-   args:
-    - -c
-    - |
-      echo "Current branch: ${BRANCH_NAME}"
-      if [[ "${BRANCH_NAME}" == "main" ]]; then
-        echo "Installing zip utility..."
-        apt-get update -qq && apt-get install -y -qq zip
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: "Zip and upload"
+    waitFor: ["Package bundle"]
+    entrypoint: 'bash'
+    args:
+      - -c
+      - |
+        echo "Current branch: ${BRANCH_NAME}"
+        if [[ "${BRANCH_NAME}" == "main" ]]; then
+          echo "Installing zip utility..."
+          apt-get update -qq && apt-get install -y -qq zip
 
-        echo "Zipping proxy bundle..."
-        cd target
-        zip -r /workspace/${_API_NAME}.zip apiproxy
+          echo "Zipping proxy bundle..."
+          cd target
+          zip -r /workspace/${_API_NAME}.zip apiproxy
 
-        echo "Uploading to GCS..."
-        gsutil cp /workspace/${_API_NAME}.zip gs://${_BUCKET_NAME}/${_BUNDLE_PATH}
-      else
-        echo "Skipping zip & upload (non-dev branch)..."
-      fi
+          echo "Uploading to GCS..."
+          gsutil cp /workspace/${_API_NAME}.zip gs://${_BUCKET_NAME}/${_BUNDLE_PATH}
+        else
+          echo "Skipping zip & upload (non-dev branch)..."
+        fi
 
   # Step 3: Deploy bundle
   - name: 'gcr.io/cloud-builders/mvn'
