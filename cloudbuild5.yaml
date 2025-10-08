@@ -32,11 +32,6 @@ steps:
           echo "Packaging bundle for UAT..."
           mvn -f pom.xml -ntp process-resources apigee-enterprise:configure \
             -Pdev -Dorg=${_PROJECT} -Denv=${_APIGEE_ENV}
-
-          echo "Zipping proxy bundle..."
-          zip -r /workspace/${_API_NAME}.zip target/apiproxy
-          echo "Uploading to GCS..."
-          gsutil cp /workspace/${_API_NAME}.zip gs://${_BUCKET_NAME}/${_BUNDLE_PATH}
         else
           echo "Skipping packaging (non-dev branch)..."
         fi
