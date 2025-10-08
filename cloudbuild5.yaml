@@ -55,9 +55,6 @@ steps:
           echo "Uploading to GCS..."
           gsutil cp /workspace/${_API_NAME}.zip gs://${_BUCKET_NAME}/${_BUNDLE_PATH}
           
-          echo "Moving bundle to Maven expected path..."
-          mkdir -p /workspace/target
-          mv /workspace/simple-proxy.zip /workspace/target/simple-proxy-v1.zip
           
         else
           echo "Skipping zip & upload (non-dev branch)..."
@@ -76,6 +73,9 @@ steps:
           echo "Downloading existing UAT bundle from GCS..."
          # gsutil cp gs://${_BUCKET_NAME}/${_BUNDLE_PATH} /workspace/${_API_NAME}.zip
           gsutil cp gs://apigee-proxy-bundles/bundles/simple-proxy.zip /workspace/${_API_NAME}.zip
+          echo "Moving bundle to Maven expected path..."
+          mkdir -p /workspace/target
+          mv /workspace/simple-proxy.zip /workspace/target/simple-proxy-v1.zip
         else
           echo "Skipping download for main branch..."
         fi
