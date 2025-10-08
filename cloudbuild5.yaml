@@ -77,7 +77,7 @@ steps:
           echo "Downloading existing UAT bundle from GCS..."
           gsutil cp gs://${_BUCKET_NAME}/${_BUNDLE_PATH} /workspace/${_API_NAME}.zip
 
-          echo "Deploying existing bundle to PROD (same revision)..."
+          echo "Deploying existing bundle to PROD (same revision)...."
           mvn -f pom.xml -ntp apigee-enterprise:deploy -Pprod \
             -Dorg=${_PROJECT} -Denv=${_APIGEE_ENV} -Dbearer=${build_token} \
             -Dapigee.api=${_API_NAME} -Dzip.path=/workspace/${_API_NAME}.zip -Doverride=false
