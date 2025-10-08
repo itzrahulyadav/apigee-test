@@ -1,92 +1,70 @@
+substitutions:
+  _APIGEE_HOST: "34.54.45.250.nip.io"
+  _APIGEE_ENV: "eval"
+  _PROJECT: "oasis-0000"
+  _API_NAME: "simple-proxy"
+  _BUCKET_NAME: "apigee-proxy-bundles"  # Change this to your GCS bucket name
+  _BUNDLE_PATH: "bundles/${_API_NAME}.zip"
+
 steps:
-  - name: gcr.io/cloud-builders/gcloud
+  # Step 1: Generate Access Token
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: "Generate token"
+    waitFor: ["-"]
+    entrypoint: 'bash'
     args:
-      - '-c'
+      - -c
       - |
-        if [[ "$BRANCH_NAME" == "prod" ]]; then
-          echo "deploying to prod-u"
-          echo "prod-u" > /workspace/env.txt
-        else
-          echo "Unknown branch: $BRANCH_NAME"
-          exit 1
-        fi
-         
-    dir: Apigee-CICD-Pipeline
-    id: Check branch
-    waitFor:
-      - '-'
-    entrypoint: bash
-  - name: gcr.io/cloud-builders/gcloud
-    args:
-      - '-c'
-      - >
-        export build_token="$(gcloud auth application-default
-        print-access-token)"
-
+        export build_token="$(gcloud auth application-default print-access-token)"
         echo "build_token=$build_token" > /workspace/build_vars
-    dir: Apigee-CICD-Pipeline
-    id: Generate token
-    waitFor:
-      - Check branch
-    entrypoint: bash
-  - name: gcr.io/cloud-builders/mvn
+
+  # Step 2: Package bundle (only for dev branch)
+  - name: 'gcr.io/cloud-builders/mvn'
+    id: "Package bundle"
+    waitFor: ["Generate token"]
+    entrypoint: 'bash'
     args:
-      - '-c'
+      - -c
       - |
-
-        ENV=$(cat /workspace/env.txt)
-        mvn -f pom.xml -ntp process-resources apigee-enterprise:configure \
-          -Pdev -Dorg=${_PROJECT} -Denv=$$ENV
-    dir: Apigee-CICD-Pipeline
-    id: Package bundle
-    waitFor:
-      - Generate token
-    entrypoint: bash
-  - name: gcr.io/cloud-builders/mvn
-    args:
-      - '-c'
-      - >
         source /workspace/build_vars
+        echo "Current branch: ${BRANCH_NAME}"
+        if [[ "${BRANCH_NAME}" == "main" ]]; then
+          echo "Packaging bundle for UAT..."
+          mvn -f pom.xml -ntp process-resources apigee-enterprise:configure \
+            -Pdev -Dorg=${_PROJECT} -Denv=${_APIGEE_ENV}
 
-        echo "Token: $build_token"
-
-
-        API_NAME=$(mvn -q \
-          -Dexec.executable=echo \
-          -Dexec.args='${project.artifactId}' \
-          --non-recursive exec:exec)
-
-        echo "API Proxy name: $$API_NAME"
-
-        ENV=$(cat /workspace/env.txt)
-
-        CURRENT_REVS=$(curl -s -H "Authorization: Bearer $build_token" \
-                     "https://apigee.googleapis.com/v1/organizations/${_PROJECT}/environments/$${ENV}/deployments" | \
-                      grep -A5 "\"apiProxy\": \"$${API_NAME}\"" | grep '"revision":' | sed -E 's/.*"revision": "([^"]+)".*/\1/')
-
-        echo $$CURRENT_REVS
-          
-        if [ -n "$${CURRENT_REVS}" ] && [ "$${CURRENT_REVS}" != "[]" ]; then
-          REVISIONS=$(echo "$$CURRENT_REVS" | tr -d '[],"' | tr ' ' '\n' | tr -d '\r' | grep -E '^[0-9]+$')
-          LATEST_REV=$(echo "$$REVISIONS" | sort -n | tail -1)
-          NEXT_REV=$$((LATEST_REV+1))
-          echo "Latest deployed revision: $$LATEST_REV"
-          echo "Next revision to be deployed: $$NEXT_REV"
+          echo "Zipping proxy bundle..."
+          zip -r /workspace/${_API_NAME}.zip target/apiproxy
+          echo "Uploading to GCS..."
+          gsutil cp /workspace/${_API_NAME}.zip gs://${_BUCKET_NAME}/${_BUNDLE_PATH}
         else
-          echo "No existing revisions found. This will be revision 1."
+          echo "Skipping packaging (non-dev branch)..."
         fi
 
+  # Step 3: Deploy bundle
+  - name: 'gcr.io/cloud-builders/mvn'
+    id: "Deploy bundle"
+    waitFor: ["Package bundle"]
+    entrypoint: 'bash'
+    args:
+      - -c
+      - |
+        source /workspace/build_vars
+        echo "Deploying proxy for branch: ${BRANCH_NAME}"
 
-        ENV=$(cat /workspace/env.txt)
+        if [[ "${BRANCH_NAME}" == "main" ]]; then
+          echo "Deploying freshly packaged bundle to UAT..."
+          mvn -f pom.xml -ntp apigee-enterprise:deploy -Pdev \
+            -Dorg=${_PROJECT} -Denv=${_APIGEE_ENV} -Dbearer=${build_token} -Doverride=true
+        else
+          echo "Downloading existing UAT bundle from GCS..."
+          gsutil cp gs://${_BUCKET_NAME}/${_BUNDLE_PATH} /workspace/${_API_NAME}.zip
 
-        mvn -f pom.xml -ntp -X apigee-enterprise:deploy -Pdev -Dorg=${_PROJECT}
-        -Denv=$$ENV -Dbearer=${build_token} 
-    dir: Apigee-CICD-Pipeline
-    id: Deploy bundle
-    waitFor:
-      - Package bundle
-    entrypoint: bash
+          echo "Deploying existing bundle to PROD (same revision)..."
+          mvn -f pom.xml -ntp apigee-enterprise:deploy -Pprod \
+            -Dorg=${_PROJECT} -Denv=${_APIGEE_ENV} -Dbearer=${build_token} \
+            -Dapigee.api=${_API_NAME} -Dzip.path=/workspace/${_API_NAME}.zip -Doverride=false
+        fi
+
 options:
   defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
-substitutions:
-  _PROJECT: <project_name>
